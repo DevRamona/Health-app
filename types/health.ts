@@ -2,97 +2,72 @@ export interface UserProfile {
   id: string
   name: string
   age: number
-  weight: number
-  height: number
-  fitnessGoal: string
-  medicalConditions: string[]
-  createdAt: Date
+  gender: "male" | "female" | "other"
+  height: number // in cm
+  weight: number // in kg
+  activityLevel: "sedentary" | "lightly_active" | "moderately_active" | "very_active" | "extremely_active"
+  fitnessGoal:
+    | "lose_weight"
+    | "gain_weight"
+    | "maintain_weight"
+    | "build_muscle"
+    | "improve_endurance"
+    | "general_health"
+  healthConditions: string[]
+  medications: string[]
+  sleepGoal: number // hours
+  preferences: {
+    units: "metric" | "imperial"
+    notifications: boolean
+    dataSharing: boolean
+  }
 }
 
 export interface HealthData {
   id: string
   date: Date
-  type: "sleep" | "workout" | "meal" | "mood" | "supplement" | "biometric" | "journal"
+  type: "sleep" | "workout" | "meal" | "mood" | "biometric" | "supplement"
 
   // Sleep data
-  sleepDuration?: number
-  sleepQuality?: number
+  sleepDuration?: number // hours
+  sleepQuality?: number // 1-10 scale
   bedTime?: string
   wakeTime?: string
 
   // Workout data
   workoutType?: string
-  workoutDuration?: number
-  workoutIntensity?: number
+  workoutDuration?: number // minutes
+  workoutIntensity?: number // 1-10 scale
   caloriesBurned?: number
 
-  // Meal data
-  mealType?: "breakfast" | "lunch" | "dinner" | "snack"
-  foods?: string[]
-  calories?: number
-  moodAfterEating?: number
-
-  // Mood & Mental data
-  mood?: number
-  stress?: number
-  focus?: number
-  anxiety?: number
-  energy?: number
-
-  // Supplement data
-  supplements?: string[]
-  dosage?: string
+  // Mood data
+  mood?: number // 1-10 scale
+  stress?: number // 1-10 scale
+  energy?: number // 1-10 scale
+  focus?: number // 1-10 scale
+  anxiety?: number // 1-10 scale
 
   // Biometric data
   weight?: number
+  bodyFat?: number
   heartRate?: number
-  bloodPressure?: string
+  bloodPressure?: { systolic: number; diastolic: number }
   steps?: number
-  waterIntake?: number
-  screenTime?: number
+  waterIntake?: number // oz
+  screenTime?: number // hours
 
-  // Journal data
-  journalEntry?: string
-  tags?: string[]
+  // Meal data
+  mealType?: "breakfast" | "lunch" | "dinner" | "snack"
+  calories?: number
+  protein?: number
+  carbs?: number
+  fat?: number
 
-  // Experiment data
-  experimentId?: string
-
+  // General
   notes?: string
-}
-
-export interface Experiment {
-  id: string
-  title: string
-  hypothesis: string
-  duration: number
-  startDate: Date
-  endDate?: Date
-  status: "active" | "completed" | "paused"
-  metrics: string[]
-  baselineData?: HealthData[]
-  results?: ExperimentResult
-}
-
-export interface ExperimentResult {
-  summary: string
-  beforeAverage: number
-  afterAverage: number
-  improvement: number
-  insights: string[]
-}
-
-export interface BiohackingTechnique {
-  id: string
-  title: string
-  category: string
-  description: string
-  difficulty: "beginner" | "intermediate" | "advanced"
-  duration: string
-  benefits: string[]
-  instructions: string[]
-  warnings?: string[]
-  relatedMetrics: string[]
+  tags?: string[]
+  location?: string
+  weather?: string
 }
 
 export interface Recommendation {
@@ -100,7 +75,28 @@ export interface Recommendation {
   type: "insight" | "suggestion" | "warning"
   title: string
   description: string
-  confidence: number
+  confidence: number // 0-100
   basedOn: string[]
   actionable: boolean
+  priority: "low" | "medium" | "high"
+}
+
+export interface Experiment {
+  id: string
+  name: string
+  description: string
+  hypothesis: string
+  startDate: Date
+  endDate?: Date
+  status: "planning" | "active" | "completed" | "paused"
+  variables: {
+    independent: string[]
+    dependent: string[]
+  }
+  protocol: string[]
+  results?: {
+    summary: string
+    data: HealthData[]
+    conclusion: string
+  }
 }

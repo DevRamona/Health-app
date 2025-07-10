@@ -3,166 +3,171 @@ import type { HealthData, UserProfile, Recommendation } from "@/types/health"
 export function generateRecommendations(healthData: HealthData[], userProfile: UserProfile): Recommendation[] {
   const recommendations: Recommendation[] = []
 
+  if (healthData.length === 0) {
+    return [
+      {
+        id: "welcome",
+        type: "suggestion",
+        title: "Start Your Health Journey",
+        description: "Begin by logging your daily health metrics to get personalized insights and recommendations.",
+        confidence: 100,
+        basedOn: ["User Profile"],
+        actionable: true,
+        priority: "high",
+      },
+    ]
+  }
+
   // Sleep analysis
-  const sleepData = healthData.filter((d) => d.sleepDuration).slice(-14)
+  const sleepData = healthData.filter((d) => d.sleepDuration).slice(-7)
   if (sleepData.length > 0) {
     const avgSleep = sleepData.reduce((sum, d) => sum + (d.sleepDuration || 0), 0) / sleepData.length
-    const avgQuality = sleepData.reduce((sum, d) => sum + (d.sleepQuality || 0), 0) / sleepData.length
 
-    if (avgSleep < 7) {
+    if (avgSleep < userProfile.sleepGoal) {
       recommendations.push({
-        id: "sleep-duration",
+        id: "sleep-deficit",
         type: "warning",
-        title: "Insufficient Sleep Duration",
-        description: `Your average sleep is ${avgSleep.toFixed(1)} hours. Aim for 7-9 hours for optimal health.`,
+        title: "Sleep Deficit Detected",
+        description: `Your average sleep (${avgSleep.toFixed(1)}h) is below your goal (${userProfile.sleepGoal}h). Consider improving your sleep hygiene.`,
         confidence: 85,
+        basedOn: ["Sleep Duration", "Sleep Goal"],
         actionable: true,
-        basedOn: ["sleep duration", "sleep quality"],
+        priority: "high",
       })
     }
 
-    if (avgQuality < 6) {
-      recommendations.push({
-        id: "sleep-quality",
-        type: "suggestion",
-        title: "Improve Sleep Quality",
-        description: "Consider establishing a bedtime routine and optimizing your sleep environment.",
-        confidence: 78,
-        actionable: true,
-        basedOn: ["sleep quality scores"],
-      })
+    // Sleep quality correlation
+    const qualityData = sleepData.filter((d) => d.sleepQuality)
+    if (qualityData.length > 2) {
+      const avgQuality = qualityData.reduce((sum, d) => sum + (d.sleepQuality || 0), 0) / qualityData.length
+      if (avgQuality < 6) {
+        recommendations.push({
+          id: "sleep-quality",
+          type: "suggestion",
+          title: "Improve Sleep Quality",
+          description:
+            "Your sleep quality scores suggest room for improvement. Try establishing a consistent bedtime routine.",
+          confidence: 75,
+          basedOn: ["Sleep Quality"],
+          actionable: true,
+          priority: "medium",
+        })
+      }
     }
   }
 
   // Mood and energy correlation
-  const moodData = healthData.filter((d) => d.mood && d.energy).slice(-7)
-  if (moodData.length > 0) {
-    const avgMood = moodData.reduce((sum, d) => sum + (d.mood || 0), 0) / moodData.length
-    const avgEnergy = moodData.reduce((sum, d) => sum + (d.energy || 0), 0) / moodData.length
-
-    if (avgMood < 6 || avgEnergy < 6) {
+  const moodData = healthData.filter((d) => d.mood && d.energy).slice(-14)
+  if (moodData.length > 5) {
+    const correlation = calculateCorrelation(moodData, "mood", "energy")
+    if (correlation > 0.6) {
       recommendations.push({
-        id: "mood-energy",
+        id: "mood-energy-correlation",
         type: "insight",
-        title: "Mood and Energy Optimization",
-        description:
-          "Your mood and energy levels could benefit from regular exercise and stress management techniques.",
-        confidence: 72,
+        title: "Strong Mood-Energy Connection",
+        description: `Your mood and energy levels are highly correlated (${(correlation * 100).toFixed(0)}%). Focus on activities that boost both.`,
+        confidence: Math.round(Math.abs(correlation) * 100),
+        basedOn: ["Mood", "Energy"],
         actionable: true,
-        basedOn: ["mood scores", "energy levels"],
+        priority: "medium",
       })
     }
   }
 
-  // Workout consistency
-  const workoutData = healthData.filter((d) => d.type === "workout").slice(-14)
-  const workoutsPerWeek = workoutData.length / 2
-
-  if (workoutsPerWeek < 3) {
+  // Exercise patterns
+  const workoutData = healthData.filter((d) => d.type === "workout").slice(-7)
+  if (workoutData.length < 3) {
     recommendations.push({
-      id: "workout-frequency",
+      id: "exercise-frequency",
       type: "suggestion",
       title: "Increase Exercise Frequency",
-      description: `You're averaging ${workoutsPerWeek.toFixed(1)} workouts per week. Aim for 3-5 sessions for optimal health benefits.`,
+      description:
+        "You've logged fewer than 3 workouts this week. Regular exercise can improve mood, energy, and sleep quality.",
       confidence: 80,
+      basedOn: ["Workout Frequency"],
       actionable: true,
-      basedOn: ["workout frequency"],
+      priority: "medium",
     })
   }
 
-  // Hydration analysis
-  const hydrationData = healthData.filter((d) => d.waterIntake).slice(-7)
-  if (hydrationData.length > 0) {
-    const avgWater = hydrationData.reduce((sum, d) => sum + (d.waterIntake || 0), 0) / hydrationData.length
+  // Stress patterns
+  const stressData = healthData.filter((d) => d.stress).slice(-7)
+  if (stressData.length > 0) {
+    const avgStress = stressData.reduce((sum, d) => sum + (d.stress || 0), 0) / stressData.length
+    if (avgStress > 7) {
+      recommendations.push({
+        id: "high-stress",
+        type: "warning",
+        title: "Elevated Stress Levels",
+        description: `Your average stress level (${avgStress.toFixed(1)}/10) is high. Consider stress management techniques like meditation or deep breathing.`,
+        confidence: 90,
+        basedOn: ["Stress Level"],
+        actionable: true,
+        priority: "high",
+      })
+    }
+  }
 
+  // Water intake
+  const waterData = healthData.filter((d) => d.waterIntake).slice(-7)
+  if (waterData.length > 0) {
+    const avgWater = waterData.reduce((sum, d) => sum + (d.waterIntake || 0), 0) / waterData.length
     if (avgWater < 64) {
+      // Less than 64 oz per day
       recommendations.push({
         id: "hydration",
         type: "suggestion",
         title: "Increase Water Intake",
-        description: `You're averaging ${avgWater.toFixed(0)}oz of water daily. Aim for at least 64oz for proper hydration.`,
-        confidence: 75,
-        actionable: true,
-        basedOn: ["water intake logs"],
-      })
-    }
-  }
-
-  // Screen time and focus correlation
-  const screenData = healthData.filter((d) => d.screenTime && d.focus).slice(-7)
-  if (screenData.length > 0) {
-    const highScreenDays = screenData.filter((d) => (d.screenTime || 0) > 8)
-    const avgFocusHighScreen = highScreenDays.reduce((sum, d) => sum + (d.focus || 0), 0) / highScreenDays.length
-
-    if (highScreenDays.length > 0 && avgFocusHighScreen < 6) {
-      recommendations.push({
-        id: "screen-focus",
-        type: "insight",
-        title: "Screen Time Impact on Focus",
-        description: "High screen time days correlate with lower focus scores. Consider digital wellness breaks.",
-        confidence: 68,
-        actionable: true,
-        basedOn: ["screen time", "focus scores"],
-      })
-    }
-  }
-
-  // Goal-specific recommendations
-  if (userProfile.fitnessGoal === "Lose Weight") {
-    const recentMeals = healthData.filter((d) => d.type === "meal").slice(-7)
-    if (recentMeals.length > 0) {
-      recommendations.push({
-        id: "weight-loss",
-        type: "suggestion",
-        title: "Weight Loss Strategy",
-        description: "Focus on portion control and increase your workout intensity. Track your meals consistently.",
+        description: `Your average water intake (${avgWater.toFixed(0)} oz) is below recommended levels. Aim for at least 64 oz daily.`,
         confidence: 70,
+        basedOn: ["Water Intake"],
         actionable: true,
-        basedOn: ["fitness goal", "meal logs"],
+        priority: "low",
       })
     }
   }
 
-  if (userProfile.fitnessGoal === "Better Sleep") {
-    recommendations.push({
-      id: "sleep-optimization",
-      type: "suggestion",
-      title: "Sleep Optimization Plan",
-      description: "Establish a consistent bedtime routine and avoid screens 1 hour before bed.",
-      confidence: 82,
-      actionable: true,
-      basedOn: ["fitness goal", "sleep patterns"],
-    })
+  // Screen time analysis
+  const screenData = healthData.filter((d) => d.screenTime).slice(-7)
+  if (screenData.length > 0) {
+    const avgScreen = screenData.reduce((sum, d) => sum + (d.screenTime || 0), 0) / screenData.length
+    if (avgScreen > 8) {
+      recommendations.push({
+        id: "screen-time",
+        type: "warning",
+        title: "High Screen Time",
+        description: `Your average screen time (${avgScreen.toFixed(1)} hours) may be affecting your sleep and focus. Consider digital detox periods.`,
+        confidence: 75,
+        basedOn: ["Screen Time"],
+        actionable: true,
+        priority: "medium",
+      })
+    }
   }
 
-  return recommendations.slice(0, 6) // Return top 6 recommendations
+  return recommendations.slice(0, 8) // Return top 8 recommendations
 }
 
 export function calculateCorrelation(data: HealthData[], xKey: keyof HealthData, yKey: keyof HealthData): number {
-  const validData = data.filter((d) => d[xKey] !== undefined && d[yKey] !== undefined)
+  const validData = data.filter(
+    (d) =>
+      typeof d[xKey] === "number" &&
+      typeof d[yKey] === "number" &&
+      !isNaN(d[xKey] as number) &&
+      !isNaN(d[yKey] as number),
+  )
 
   if (validData.length < 2) return 0
 
-  const xValues = validData.map((d) => Number(d[xKey]))
-  const yValues = validData.map((d) => Number(d[yKey]))
+  const n = validData.length
+  const sumX = validData.reduce((sum, d) => sum + (d[xKey] as number), 0)
+  const sumY = validData.reduce((sum, d) => sum + (d[yKey] as number), 0)
+  const sumXY = validData.reduce((sum, d) => sum + (d[xKey] as number) * (d[yKey] as number), 0)
+  const sumX2 = validData.reduce((sum, d) => sum + Math.pow(d[xKey] as number, 2), 0)
+  const sumY2 = validData.reduce((sum, d) => sum + Math.pow(d[yKey] as number, 2), 0)
 
-  const xMean = xValues.reduce((sum, val) => sum + val, 0) / xValues.length
-  const yMean = yValues.reduce((sum, val) => sum + val, 0) / yValues.length
-
-  let numerator = 0
-  let xSumSquares = 0
-  let ySumSquares = 0
-
-  for (let i = 0; i < xValues.length; i++) {
-    const xDiff = xValues[i] - xMean
-    const yDiff = yValues[i] - yMean
-
-    numerator += xDiff * yDiff
-    xSumSquares += xDiff * xDiff
-    ySumSquares += yDiff * yDiff
-  }
-
-  const denominator = Math.sqrt(xSumSquares * ySumSquares)
+  const numerator = n * sumXY - sumX * sumY
+  const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY))
 
   return denominator === 0 ? 0 : numerator / denominator
 }
@@ -170,61 +175,140 @@ export function calculateCorrelation(data: HealthData[], xKey: keyof HealthData,
 export function detectPatterns(healthData: HealthData[]): string[] {
   const patterns: string[] = []
 
-  // Weekend vs weekday patterns
-  const weekendData = healthData.filter((d) => {
-    const day = new Date(d.date).getDay()
-    return day === 0 || day === 6
+  if (healthData.length < 7) {
+    return ["Need more data to detect meaningful patterns. Keep logging!"]
+  }
+
+  // Weekly patterns
+  const weeklyData = Array(7)
+    .fill(0)
+    .map(() => ({ sleep: [], mood: [], energy: [] }))
+
+  healthData.forEach((d) => {
+    const dayOfWeek = new Date(d.date).getDay()
+    if (d.sleepDuration) weeklyData[dayOfWeek].sleep.push(d.sleepDuration)
+    if (d.mood) weeklyData[dayOfWeek].mood.push(d.mood)
+    if (d.energy) weeklyData[dayOfWeek].energy.push(d.energy)
   })
 
-  const weekdayData = healthData.filter((d) => {
-    const day = new Date(d.date).getDay()
-    return day >= 1 && day <= 5
-  })
+  // Find best and worst days
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
-  if (weekendData.length > 0 && weekdayData.length > 0) {
-    const weekendSleep =
-      weekendData.filter((d) => d.sleepDuration).reduce((sum, d) => sum + (d.sleepDuration || 0), 0) /
-      weekendData.filter((d) => d.sleepDuration).length
-    const weekdaySleep =
-      weekdayData.filter((d) => d.sleepDuration).reduce((sum, d) => sum + (d.sleepDuration || 0), 0) /
-      weekdayData.filter((d) => d.sleepDuration).length
+  // Sleep patterns
+  const sleepAverages = weeklyData
+    .map((day, index) => ({
+      day: dayNames[index],
+      avg: day.sleep.length > 0 ? day.sleep.reduce((a, b) => a + b, 0) / day.sleep.length : 0,
+    }))
+    .filter((d) => d.avg > 0)
 
-    if (Math.abs(weekendSleep - weekdaySleep) > 1) {
+  if (sleepAverages.length > 0) {
+    const bestSleepDay = sleepAverages.reduce((best, current) => (current.avg > best.avg ? current : best))
+    const worstSleepDay = sleepAverages.reduce((worst, current) => (current.avg < worst.avg ? current : worst))
+
+    if (bestSleepDay.avg - worstSleepDay.avg > 1) {
       patterns.push(
-        `Sleep pattern varies significantly between weekdays (${weekdaySleep.toFixed(1)}h) and weekends (${weekendSleep.toFixed(1)}h)`,
+        `You sleep best on ${bestSleepDay.day}s (${bestSleepDay.avg.toFixed(1)}h) and least on ${worstSleepDay.day}s (${worstSleepDay.avg.toFixed(1)}h)`,
       )
     }
   }
 
-  // Consistency patterns
-  const sleepData = healthData.filter((d) => d.sleepDuration).slice(-14)
-  if (sleepData.length > 7) {
-    const sleepTimes = sleepData.map((d) => d.sleepDuration || 0)
-    const variance =
-      sleepTimes.reduce((sum, time) => {
-        const mean = sleepTimes.reduce((s, t) => s + t, 0) / sleepTimes.length
-        return sum + Math.pow(time - mean, 2)
-      }, 0) / sleepTimes.length
+  // Mood patterns
+  const moodAverages = weeklyData
+    .map((day, index) => ({
+      day: dayNames[index],
+      avg: day.mood.length > 0 ? day.mood.reduce((a, b) => a + b, 0) / day.mood.length : 0,
+    }))
+    .filter((d) => d.avg > 0)
 
-    if (variance < 0.5) {
-      patterns.push("Very consistent sleep schedule - great for circadian rhythm!")
-    } else if (variance > 2) {
-      patterns.push("Irregular sleep schedule detected - consider establishing a routine")
+  if (moodAverages.length > 0) {
+    const bestMoodDay = moodAverages.reduce((best, current) => (current.avg > best.avg ? current : best))
+    const worstMoodDay = moodAverages.reduce((worst, current) => (current.avg < worst.avg ? current : worst))
+
+    if (bestMoodDay.avg - worstMoodDay.avg > 1.5) {
+      patterns.push(
+        `Your mood peaks on ${bestMoodDay.day}s (${bestMoodDay.avg.toFixed(1)}/10) and dips on ${worstMoodDay.day}s (${worstMoodDay.avg.toFixed(1)}/10)`,
+      )
     }
   }
 
-  // Workout timing patterns
-  const workouts = healthData.filter((d) => d.type === "workout").slice(-10)
-  if (workouts.length > 3) {
-    const morningWorkouts = workouts.filter((d) => {
-      const hour = new Date(d.date).getHours()
-      return hour >= 6 && hour <= 10
-    }).length
+  // Workout impact
+  const workoutDays = healthData.filter((d) => d.type === "workout")
+  if (workoutDays.length > 2) {
+    const workoutMoodAvg = workoutDays.reduce((sum, d) => sum + (d.mood || 0), 0) / workoutDays.length
+    const nonWorkoutDays = healthData.filter((d) => d.type !== "workout" && d.mood)
 
-    if (morningWorkouts / workouts.length > 0.7) {
-      patterns.push("You prefer morning workouts - excellent for energy and metabolism!")
+    if (nonWorkoutDays.length > 0) {
+      const nonWorkoutMoodAvg = nonWorkoutDays.reduce((sum, d) => sum + (d.mood || 0), 0) / nonWorkoutDays.length
+
+      if (workoutMoodAvg > nonWorkoutMoodAvg + 0.5) {
+        patterns.push(`Your mood is ${(workoutMoodAvg - nonWorkoutMoodAvg).toFixed(1)} points higher on workout days`)
+      }
     }
   }
 
-  return patterns
+  // Sleep-mood correlation
+  const sleepMoodData = healthData.filter((d) => d.sleepDuration && d.mood)
+  if (sleepMoodData.length > 5) {
+    const correlation = calculateCorrelation(sleepMoodData, "sleepDuration", "mood")
+    if (Math.abs(correlation) > 0.5) {
+      patterns.push(
+        `Strong ${correlation > 0 ? "positive" : "negative"} correlation between sleep and mood (${(correlation * 100).toFixed(0)}%)`,
+      )
+    }
+  }
+
+  return patterns.length > 0 ? patterns : ["Keep logging data to discover your personal health patterns!"]
+}
+
+export function generateInsights(healthData: HealthData[], userProfile: UserProfile) {
+  const insights = {
+    weeklyAverage: {
+      sleep: 0,
+      mood: 0,
+      energy: 0,
+      workouts: 0,
+      steps: 0,
+    },
+    trends: {
+      sleep: 0,
+      mood: 0,
+      energy: 0,
+    },
+    correlations: {
+      sleepMood: 0,
+      exerciseEnergy: 0,
+      stressSleep: 0,
+    },
+    patterns: detectPatterns(healthData),
+    recommendations: generateRecommendations(healthData, userProfile),
+  }
+
+  // Calculate weekly averages
+  const recentData = healthData.slice(-7)
+
+  const sleepData = recentData.filter((d) => d.sleepDuration)
+  insights.weeklyAverage.sleep =
+    sleepData.length > 0 ? sleepData.reduce((sum, d) => sum + (d.sleepDuration || 0), 0) / sleepData.length : 0
+
+  const moodData = recentData.filter((d) => d.mood)
+  insights.weeklyAverage.mood =
+    moodData.length > 0 ? moodData.reduce((sum, d) => sum + (d.mood || 0), 0) / moodData.length : 0
+
+  const energyData = recentData.filter((d) => d.energy)
+  insights.weeklyAverage.energy =
+    energyData.length > 0 ? energyData.reduce((sum, d) => sum + (d.energy || 0), 0) / energyData.length : 0
+
+  insights.weeklyAverage.workouts = recentData.filter((d) => d.type === "workout").length
+
+  const stepsData = recentData.filter((d) => d.steps)
+  insights.weeklyAverage.steps =
+    stepsData.length > 0 ? stepsData.reduce((sum, d) => sum + (d.steps || 0), 0) / stepsData.length : 0
+
+  // Calculate correlations
+  insights.correlations.sleepMood = calculateCorrelation(healthData, "sleepDuration", "mood")
+  insights.correlations.exerciseEnergy = calculateCorrelation(healthData, "workoutDuration", "energy")
+  insights.correlations.stressSleep = calculateCorrelation(healthData, "stress", "sleepQuality")
+
+  return insights
 }

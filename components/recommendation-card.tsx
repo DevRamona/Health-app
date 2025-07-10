@@ -8,62 +8,103 @@ import { Lightbulb, AlertTriangle, TrendingUp, CheckCircle } from "lucide-react"
 
 interface RecommendationCardProps {
   recommendation: Recommendation
+  onAction?: (id: string) => void
 }
 
-export function RecommendationCard({ recommendation }: RecommendationCardProps) {
+export function RecommendationCard({ recommendation, onAction }: RecommendationCardProps) {
   const getIcon = () => {
     switch (recommendation.type) {
       case "insight":
-        return TrendingUp
+        return <TrendingUp className="h-4 w-4" />
       case "suggestion":
-        return Lightbulb
+        return <Lightbulb className="h-4 w-4" />
       case "warning":
-        return AlertTriangle
+        return <AlertTriangle className="h-4 w-4" />
       default:
-        return CheckCircle
+        return <CheckCircle className="h-4 w-4" />
     }
   }
 
-  const getColor = () => {
+  const getColorClasses = () => {
     switch (recommendation.type) {
       case "insight":
-        return "bg-blue-100 text-blue-600"
+        return {
+          border: "border-blue-200",
+          bg: "bg-blue-50",
+          icon: "text-blue-600",
+          badge: "bg-blue-100 text-blue-800",
+        }
       case "suggestion":
-        return "bg-yellow-100 text-yellow-600"
+        return {
+          border: "border-amber-200",
+          bg: "bg-amber-50",
+          icon: "text-amber-600",
+          badge: "bg-amber-100 text-amber-800",
+        }
       case "warning":
-        return "bg-red-100 text-red-600"
+        return {
+          border: "border-red-200",
+          bg: "bg-red-50",
+          icon: "text-red-600",
+          badge: "bg-red-100 text-red-800",
+        }
       default:
-        return "bg-green-100 text-green-600"
+        return {
+          border: "border-gray-200",
+          bg: "bg-gray-50",
+          icon: "text-gray-600",
+          badge: "bg-gray-100 text-gray-800",
+        }
     }
   }
 
-  const Icon = getIcon()
+  const getPriorityColor = () => {
+    switch (recommendation.priority) {
+      case "high":
+        return "bg-red-100 text-red-800"
+      case "medium":
+        return "bg-amber-100 text-amber-800"
+      case "low":
+        return "bg-green-100 text-green-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const colors = getColorClasses()
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className={`${colors.border} ${colors.bg} border-2 hover:shadow-md transition-shadow duration-200`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className={`p-2 rounded-full ${getColor()}`}>
-            <Icon className="h-4 w-4" />
+          <CardTitle className="flex items-center space-x-2 text-sm font-semibold">
+            <span className={colors.icon}>{getIcon()}</span>
+            <span>{recommendation.title}</span>
+          </CardTitle>
+          <div className="flex space-x-1">
+            <Badge variant="outline" className={getPriorityColor()}>
+              {recommendation.priority}
+            </Badge>
+            <Badge variant="outline" className={colors.badge}>
+              {recommendation.confidence}%
+            </Badge>
           </div>
-          <Badge variant="outline" className="text-xs">
-            {recommendation.confidence}% confidence
-          </Badge>
         </div>
-        <CardTitle className="text-lg">{recommendation.title}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <CardDescription className="mb-4">{recommendation.description}</CardDescription>
+      <CardContent className="space-y-3">
+        <CardDescription className="text-sm text-gray-700">{recommendation.description}</CardDescription>
 
-        <div className="space-y-2">
-          <div className="text-xs text-muted-foreground">Based on: {recommendation.basedOn.join(", ")}</div>
+        {recommendation.basedOn.length > 0 && (
+          <div className="text-xs text-gray-500">
+            <span className="font-medium">Based on:</span> {recommendation.basedOn.join(", ")}
+          </div>
+        )}
 
-          {recommendation.actionable && (
-            <Button size="sm" variant="outline" className="w-full bg-transparent">
-              Take Action
-            </Button>
-          )}
-        </div>
+        {recommendation.actionable && onAction && (
+          <Button size="sm" variant="outline" onClick={() => onAction(recommendation.id)} className="w-full mt-2">
+            Take Action
+          </Button>
+        )}
       </CardContent>
     </Card>
   )
