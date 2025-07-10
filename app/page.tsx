@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AuthProvider } from "@/contexts/auth-context"
+import { ProtectedRoute } from "@/components/auth/protected-route"
+import { UserMenu } from "@/components/user-menu"
 import { UserProfileSetup } from "@/components/user-profile-setup"
 import { MainDashboard } from "@/components/main-dashboard"
 import { DataInputHub } from "@/components/data-input-hub"
@@ -12,7 +15,7 @@ import { JournalView } from "@/components/journal-view"
 import type { UserProfile, HealthData } from "@/types/health"
 import { Activity, Brain, FlaskConical, BookOpen, PenTool, BarChart3, Plus } from "lucide-react"
 
-export default function HealthDashboard() {
+function HealthDashboardContent() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [healthData, setHealthData] = useState<HealthData[]>([])
   const [activeTab, setActiveTab] = useState("dashboard")
@@ -90,9 +93,12 @@ export default function HealthDashboard() {
               <p className="text-sm text-gray-600">Welcome back, {userProfile.name}</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-600">Goal: {userProfile.fitnessGoal}</p>
-            <p className="text-xs text-gray-500">{healthData.length} data points logged</p>
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <p className="text-sm text-gray-600">Goal: {userProfile.fitnessGoal}</p>
+              <p className="text-xs text-gray-500">{healthData.length} data points logged</p>
+            </div>
+            <UserMenu />
           </div>
         </div>
 
@@ -150,5 +156,15 @@ export default function HealthDashboard() {
         </Tabs>
       </div>
     </div>
+  )
+}
+
+export default function HealthDashboard() {
+  return (
+    <AuthProvider>
+      <ProtectedRoute>
+        <HealthDashboardContent />
+      </ProtectedRoute>
+    </AuthProvider>
   )
 }
